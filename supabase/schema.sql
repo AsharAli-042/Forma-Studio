@@ -28,6 +28,7 @@ revoke all on public.inquiries from anon, authenticated;
 grant insert (name, email, service, budget, message) on public.inquiries to anon;
 grant select on public.inquiries to authenticated;
 grant update (status) on public.inquiries to authenticated;
+grant delete on public.inquiries to authenticated;
 
 drop policy if exists "Visitors can submit new inquiries" on public.inquiries;
 create policy "Visitors can submit new inquiries" on public.inquiries
@@ -42,6 +43,12 @@ create policy "Studio admins can update statuses" on public.inquiries
   for update to authenticated using (
     exists (select 1 from public.admins where user_id = (select auth.uid()))
   ) with check (
+    exists (select 1 from public.admins where user_id = (select auth.uid()))
+  );
+
+drop policy if exists "Studio admins can delete inquiries" on public.inquiries;
+create policy "Studio admins can delete inquiries" on public.inquiries
+  for delete to authenticated using (
     exists (select 1 from public.admins where user_id = (select auth.uid()))
   );
 

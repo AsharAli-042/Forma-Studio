@@ -23,10 +23,10 @@ export default function Home() {
           <a className="primary-link" href="#work">View selected work <span aria-hidden="true">↗</span></a>
           <div className="hero-caption"><span>RESIDENTIAL INTERIORS</span><span>Design. Detail. Everyday life.</span></div>
         </div>
-        <div className="hero-visual">
-          <Image className="hero-photo" src="/images/quiet-residence.jpg" alt="Sunlit living room with oak furniture, houseplants, and tall windows" loading="eager" fetchPriority="high" sizes="(max-width: 620px) 100vw, 50vw" width={1000} height={1200} />
-          <div className="hero-photo-label"><span>THE QUIET RESIDENCE</span><span>01 / 03</span></div>
-        </div>
+        <figure className="hero-visual">
+          <div className="hero-photo-frame"><Image className="hero-photo" src="/images/quiet-residence.jpg" alt="Sunlit living room with oak furniture, houseplants, and tall windows" loading="eager" fetchPriority="high" sizes="(max-width: 620px) 100vw, 50vw" width={1000} height={1200} /></div>
+          <figcaption className="hero-photo-label"><span>The quiet residence</span><span>RESIDENTIAL / 2025</span></figcaption>
+        </figure>
       </section>
 
       <section className="approach-section shell section-space" id="approach">

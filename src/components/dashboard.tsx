@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Dialog } from "radix-ui";
+import { AlertDialog, Dialog } from "radix-ui";
 import { ChevronLeft, ChevronRight, LoaderCircle, Search, X } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -35,10 +35,14 @@ export function Dashboard({ demo, email }: { demo: boolean; email?: string }) {
   const [selected, setSelected] = useState<Inquiry | null>(null);
   const [newStatus, setNewStatus] = useState<InquiryStatus>("new");
   const [saving, setSaving] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [detailError, setDetailError] = useState("");
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
+  const busy = saving || deleting;
   const load = useCallback((signal?: AbortSignal) => fetchInquiries(demo, signal)
     .then(items => { if (!signal?.aborted) { setInquiries(items); setError(""); } })
     .catch(err => { if (!signal?.aborted) setError(err instanceof Error ? err.message : "Could not load inquiries."); })
@@ -59,7 +63,7 @@ export function Dashboard({ demo, email }: { demo: boolean; email?: string }) {
   const currentPage = Math.min(page, pageCount);
   const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const counts = { total: inquiries.length, new: inquiries.filter(i => i.status === "new").length, contacted: inquiries.filter(i => i.status === "contacted").length, completed: inquiries.filter(i => i.status === "completed").length };
-  function openInquiry(inquiry: Inquiry) { setSelected(inquiry); setNewStatus(inquiry.status); setDetailError(""); }
+  function openInquiry(inquiry: Inquiry) { setSelected(inquiry); setNewStatus(inquiry.status); setDetailError(""); setDeleteError(""); setDeleteOpen(false); }
   async function saveStatus() {
     if (!selected) return;
     setSaving(true);
@@ -79,6 +83,27 @@ export function Dashboard({ demo, email }: { demo: boolean; email?: string }) {
       notify("Inquiry status updated.");
     } catch (err) { setDetailError(err instanceof Error ? err.message : "Could not save your change."); }
     finally { setSaving(false); }
+  }
+  async function deleteInquiry() {
+    if (!selected || deleting) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      if (demo) {
+        const latest = readDemoInquiries().filter(item => item.id !== selected.id);
+        writeDemoInquiries(latest);
+        setInquiries(latest);
+      } else {
+        const response = await fetch("/api/inquiries", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: selected.id }) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not delete the inquiry.");
+        setInquiries(items => items.filter(item => item.id !== selected.id));
+      }
+      setDeleteOpen(false);
+      setSelected(null);
+      notify("Inquiry deleted.");
+    } catch (err) { setDeleteError(err instanceof Error ? err.message : "Could not delete the inquiry."); }
+    finally { setDeleting(false); }
   }
   function exportCsv() {
     const rows = [["Name", "Email", "Service", "Budget", "Message", "Status", "Received"], ...filtered.map(i => [i.name, i.email, i.service, i.budget, i.message, i.status, i.created_at])];
@@ -160,11 +185,11 @@ export function Dashboard({ demo, email }: { demo: boolean; email?: string }) {
       </main>
     </div>
 
-    <Dialog.Root open={Boolean(selected)} onOpenChange={open => { if (!open && !saving) setSelected(null); }}>
-      <Dialog.Portal><Dialog.Overlay className="dialog-overlay" /><Dialog.Content className="dialog-content" onEscapeKeyDown={event => { if (saving) event.preventDefault(); }} onPointerDownOutside={event => { if (saving) event.preventDefault(); }}>
+    <Dialog.Root open={Boolean(selected)} onOpenChange={open => { if (!open && !busy && !deleteOpen) setSelected(null); }}>
+      <Dialog.Portal><Dialog.Overlay className="dialog-overlay" /><Dialog.Content className="dialog-content" onEscapeKeyDown={event => { if (busy || deleteOpen) event.preventDefault(); }} onPointerDownOutside={event => { if (busy || deleteOpen) event.preventDefault(); }}>
         <Dialog.Title className="dialog-title">{selected?.name || "Project inquiry"}</Dialog.Title>
         <Dialog.Description className="dialog-description">Project brief and client details.</Dialog.Description>
-        <Dialog.Close className="dialog-close" aria-label="Close inquiry" disabled={saving}><X size={19} /></Dialog.Close>
+        <Dialog.Close className="dialog-close" aria-label="Close inquiry" disabled={busy}><X size={19} /></Dialog.Close>
         {selected && <>
           <dl className="detail-grid">
             <div><dt>Client</dt><dd>{selected.name}</dd></div>
@@ -175,12 +200,20 @@ export function Dashboard({ demo, email }: { demo: boolean; email?: string }) {
             <div><dt>Current status</dt><dd><span className={"status-badge status-" + selected.status}>{statusLabels[selected.status]}</span></dd></div>
           </dl>
           <div className="detail-message"><span>About the project</span><p>{selected.message}</p></div>
-          <label className="status-control"><span>Update status</span><select value={newStatus} onChange={event => setNewStatus(event.target.value as InquiryStatus)} disabled={saving}>{statuses.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></label>
+          <label className="status-control"><span>Update status</span><select value={newStatus} onChange={event => setNewStatus(event.target.value as InquiryStatus)} disabled={busy}>{statuses.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></label>
           {detailError && <p className="form-error" role="alert">{detailError}</p>}
-          <div className="dialog-actions"><Button variant="outline" disabled={saving} onClick={() => setSelected(null)}>Cancel</Button><Button onClick={saveStatus} disabled={saving || newStatus === selected.status}>{saving && <LoaderCircle size={14} className="animate-spin" />}{saving ? "Saving…" : "Save changes"}</Button></div>
+          <div className="dialog-actions"><Button className="delete-trigger" variant="outline" disabled={busy} onClick={() => { setDeleteError(""); setDeleteOpen(true); }}>Delete inquiry</Button><Button variant="outline" disabled={busy} onClick={() => setSelected(null)}>Cancel</Button><Button onClick={saveStatus} disabled={busy || newStatus === selected.status}>{saving && <LoaderCircle size={14} className="animate-spin" />}{saving ? "Saving…" : "Save changes"}</Button></div>
         </>}
       </Dialog.Content></Dialog.Portal>
     </Dialog.Root>
+    <AlertDialog.Root open={deleteOpen} onOpenChange={open => { if (!deleting) setDeleteOpen(open); }}>
+      <AlertDialog.Portal><AlertDialog.Overlay className="dialog-overlay delete-overlay" /><AlertDialog.Content className="dialog-content delete-dialog" onEscapeKeyDown={event => { if (deleting) event.preventDefault(); }}>
+        <AlertDialog.Title className="dialog-title">Delete this inquiry?</AlertDialog.Title>
+        <AlertDialog.Description className="dialog-description">The inquiry from {selected?.name} will be permanently removed from the shared studio inbox for all admins. This cannot be undone.</AlertDialog.Description>
+        {deleteError && <p className="form-error" role="alert">{deleteError}</p>}
+        <div className="delete-actions"><AlertDialog.Cancel asChild><Button variant="outline" disabled={deleting}>Keep inquiry</Button></AlertDialog.Cancel><AlertDialog.Action asChild><Button variant="destructive" disabled={deleting} onClick={event => { event.preventDefault(); void deleteInquiry(); }}>{deleting && <LoaderCircle size={14} className="animate-spin" />}{deleting ? "Deleting…" : "Delete permanently"}</Button></AlertDialog.Action></div>
+      </AlertDialog.Content></AlertDialog.Portal>
+    </AlertDialog.Root>
     {toast && <div className="toast" role="status">{toast}</div>}
   </div>;
 }

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 const variants = cva("ui-button inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50", {
   variants: {
-    variant: { default: "ui-button-primary", outline: "ui-button-outline", ghost: "ui-button-ghost" },
+    variant: { default: "ui-button-primary", outline: "ui-button-outline", ghost: "ui-button-ghost", destructive: "ui-button-destructive" },
     size: { default: "h-10 px-4 py-2", sm: "h-8 px-3 text-xs", icon: "h-9 w-9" },
   }, defaultVariants: { variant: "default", size: "default" },
 });

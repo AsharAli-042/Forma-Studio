@@ -61,3 +61,19 @@ export async function PATCH(request: NextRequest) {
     return json({ inquiry: data });
   } catch { return json({ error: "Invalid request." }, 400); }
 }
+
+export async function DELETE(request: NextRequest) {
+  if (!isConfigured) return json({ error: "Supabase is not configured." }, 503);
+  if (!sameOrigin(request)) return json({ error: "Invalid request origin." }, 403);
+  const admin = await getAdminClient();
+  if (!admin) return json({ error: "Please sign in with an authorized studio account." }, 401);
+  try {
+    const result = z.object({ id: z.uuid() }).safeParse(await request.json());
+    if (!result.success) return json({ error: "Invalid inquiry." }, 400);
+    const { data, error } = await admin.client.from("inquiries").delete().eq("id", result.data.id).select("id").maybeSingle();
+    if (error?.code === "42501") return json({ error: "Deletion is not enabled in the database yet. Apply the admin-delete-inquiries SQL migration." }, 409);
+    if (error) return json({ error: "The inquiry could not be deleted. Please try again." }, 503);
+    if (!data) return json({ error: "Inquiry not found or deletion is not permitted. Refresh the inbox and check the database migration." }, 404);
+    return json({ deleted: data.id });
+  } catch { return json({ error: "Invalid request." }, 400); }
+}

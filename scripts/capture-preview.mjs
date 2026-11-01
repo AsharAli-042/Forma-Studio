@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { chromium, expect } from "@playwright/test";
 
 const baseUrl = process.env.APP_URL || "http://127.0.0.1:3100";
+const heroOnly = process.argv.includes("--hero-only");
 await mkdir("artifacts", { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined });
 try {
@@ -18,6 +19,15 @@ try {
     await page.locator(".hero-photo").evaluate(img => img.decode());
     await page.screenshot({ path: "artifacts/home-desktop-" + theme + ".png" });
     await page.screenshot({ path: "artifacts/home-full-" + theme + ".png", fullPage: true });
+    if (heroOnly) {
+      await page.locator(".hero-visual").screenshot({ path: "artifacts/hero-frame-" + theme + ".png" });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+      await page.locator(".hero-photo").evaluate(img => img.decode());
+      await page.locator(".hero-visual").screenshot({ path: "artifacts/hero-frame-mobile-" + theme + ".png" });
+      await page.setViewportSize({ width: 1440, height: 1080 });
+      continue;
+    }
     await page.goto(new URL("/studio", baseUrl).href, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Open inquiry from Olivia Bennett" }).waitFor();
     await page.screenshot({ path: "artifacts/dashboard-desktop-" + theme + ".png" });
@@ -36,6 +46,6 @@ try {
     await page.screenshot({ path: "artifacts/dashboard-mobile-" + theme + ".png" });
     await page.setViewportSize({ width: 1440, height: 1080 });
   }
-  console.log(JSON.stringify({ screenshots: 14, browserErrors: errors }));
+  console.log(JSON.stringify({ screenshots: heroOnly ? 8 : 14, browserErrors: errors }));
   if (errors.length) process.exitCode = 1;
 } finally { await browser.close(); }

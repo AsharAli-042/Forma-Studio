@@ -60,6 +60,29 @@ test("server API does not claim to save inquiries without a backend", async ({ r
   const postResponse = await request.post("/api/inquiries", { data: { name: "Test" } });
   expect(postResponse.status()).toBe(503);
   expect(await postResponse.json()).toHaveProperty("error");
+  const deleteResponse = await request.delete("/api/inquiries", { data: { id: "00000000-0000-4000-8000-000000000000" } });
+  expect(deleteResponse.status()).toBe(503);
+});
+
+test("deleting an inquiry requires confirmation, updates counts, and persists", async ({ page }) => {
+  await page.goto("/studio");
+  const row = page.getByRole("row").filter({ hasText: "Olivia Bennett" });
+  await expect(row).toBeVisible();
+  await page.getByRole("button", { name: "Open inquiry from Olivia Bennett" }).click();
+  await page.getByRole("button", { name: "Delete inquiry", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).toContainText("for all admins");
+  await page.getByRole("button", { name: "Keep inquiry" }).click();
+  await expect(page.getByRole("alertdialog")).not.toBeVisible();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "Delete inquiry", exact: true }).click();
+  await page.getByRole("button", { name: "Delete permanently", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).not.toBeVisible();
+  await expect(row).toHaveCount(0);
+  await expect(page.locator("tbody tr")).toHaveCount(3);
+  await expect(page.getByRole("button", { name: "Filter: Total inquiries", exact: true })).toContainText("3");
+  await page.reload();
+  await expect(page.locator("tbody tr")).toHaveCount(3);
+  await expect(page.getByRole("row").filter({ hasText: "Olivia Bennett" })).toHaveCount(0);
 });
 
 test("demo sign-in and unknown routes render clearly", async ({ page }) => {

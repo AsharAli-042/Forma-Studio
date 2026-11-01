@@ -12,7 +12,7 @@ if (process.argv.includes("--wait")) {
     try {
       const response = await fetch(baseUrl, { cache: "no-store", signal: AbortSignal.timeout(15000) });
       const html = await response.text();
-      if (response.ok && html.includes("Rooms to live in.") && html.includes("forma-theme")) { ready = true; break; }
+      if (response.ok && html.includes("hero-photo-frame") && html.includes("forma-theme")) { ready = true; break; }
     } catch { /* Deployment may be switching versions. */ }
     await new Promise(resolve => setTimeout(resolve, 10000));
   }
@@ -38,6 +38,8 @@ try {
 
   const inquiries = await page.request.get(new URL("/api/inquiries", baseUrl).href);
   assert.equal(inquiries.status(), 401);
+  const deletion = await page.request.delete(new URL("/api/inquiries", baseUrl).href, { data: { id: "00000000-0000-4000-8000-000000000000" } });
+  assert.equal(deletion.status(), 401);
   await page.goto(new URL("/studio", baseUrl).href, { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(new URL("/login", baseUrl).href);
   await expect(page.getByRole("button", { name: "Sign in to your studio" })).toBeVisible();

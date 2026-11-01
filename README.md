@@ -37,7 +37,11 @@ returning user_id;
 6. Restart `npm run dev`. Submit a real test inquiry, sign in at `/login`, open it, update its status, and refresh to confirm it persisted. Sign out, then verify `/studio` redirects to `/login` and `GET /api/inquiries` returns 401.
 7. Disable public signups in Supabase Auth settings if you only need manually created admin accounts. New authenticated users are never admins automatically.
 
-The public form validates on both client and server. The server uses the publishable key to insert as an anonymous visitor. Database grants allow anonymous users to insert only form fields, never read inquiries or set their status. Authenticated users can only read or update a status if they are present in `public.admins`. No service-role key is required.
+The public form validates on both client and server. The server uses the publishable key to insert as an anonymous visitor. Database grants allow anonymous users to insert only form fields, never read inquiries, change their status, or delete them. Authenticated users can read, update a status, or delete only if they are present in `public.admins`. No service-role key is required.
+
+## Delete an inquiry
+
+Open an inquiry in the portal, choose **Delete inquiry**, and confirm **Delete permanently**. The confirmation names the client and explains that removal is permanent for all admins of the shared studio. Cancel keeps the inquiry. Counts and filtered lists update after a successful deletion. Existing projects created before deletion was added must first run `supabase/migrations/20261101_admin_delete_inquiries.sql` in the Supabase SQL Editor. New projects running the full schema already have the policy. No existing records are removed by the migration.
 
 ## Deploy to Vercel
 
