@@ -15,6 +15,10 @@ Open http://127.0.0.1:3000. Public website: `/`. Dashboard: `/studio`. Admin sig
 
 Without Supabase environment values, the app runs in clearly labelled **demo mode**. Inquiries and status changes persist in localStorage in the same browser and origin. The demo dashboard is intentionally public and contains fictional sample data. It does not write to a backend. Use sample details, not personal customer information. Demo data is not copied into Supabase when you connect it. Clearing this site's browser storage resets the demo.
 
+## Appearance
+
+The site opens in dark mode, using oxblood, warm clay, and muted brass. The Light/Dark control is available on the website, login page, and portal. The light palette uses clay-colored surfaces instead of white. A preference is saved in localStorage and applied before rendering the page; if browser storage is blocked, switching themes still works for the current page. The portal includes status-summary filters, inquiry search, a refresh action, and CSV export.
+
 ## Connect the live backend
 
 1. Create a Supabase project named `forma-studio`, in a region close to you. Keep the database password private.
@@ -56,7 +60,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The browser tests use demo mode. They cover submission-to-dashboard persistence, status changes, search/filter behavior, CSV export, mobile navigation, and the unconfigured API. Live database and authentication checks require your Supabase project and must be completed after setup.
+The browser tests start an isolated demo server on port 3100 with a separate `.next-test` build directory. `FORMA_DEMO_MODE=1` ensures tests never write to the configured Supabase database. They cover submission-to-dashboard persistence, status changes, summary filters, search, CSV export, mobile navigation, theme preference across pages/reloads, and the unconfigured API. Live database and authentication checks require your Supabase project and must be completed after setup. For screenshots, start a demo server with `FORMA_DEMO_MODE=1` and `NEXT_DIST_DIR=.next-test` on port 3100, then run `node scripts/capture-preview.mjs`.
 
 With `.env.local` configured, run `node --env-file=.env.local scripts/check-backend.mjs` for read-only connection and anonymous-access checks. With the local app running in live mode, `node scripts/verify-live.mjs` submits one clearly labelled sample inquiry and checks server validation, request-origin handling, and signed-out access. This leaves the sample inquiry in the database for you to inspect from your admin account. Admin sign-in and status persistence must also be checked with your account.
 

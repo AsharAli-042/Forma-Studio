@@ -7,7 +7,7 @@ test("inquiry reaches dashboard and status persists after refresh", async ({ pag
   await page.getByRole("combobox", { name: "How can we help?", exact: true }).selectOption("Room refresh");
   await page.getByRole("combobox", { name: "Estimated budget", exact: true }).selectOption("$5,000–$15,000");
   await page.getByLabel("A little about your project", { exact: true }).fill("We would love a warmer living room with considered furniture and natural materials.");
-  await page.getByRole("button", { name: "Start the conversation" }).click();
+  await page.getByRole("button", { name: "Send project inquiry" }).click();
   await expect(page.getByRole("heading", { name: "Your demo inquiry is in." })).toBeVisible();
   await page.getByRole("link", { name: "View in studio portal" }).click();
   await expect(page).toHaveURL(/\/studio$/, { timeout: 15000 });
@@ -50,7 +50,7 @@ test("mobile menu, forms, and dashboard fit the screen", async ({ page }) => {
   await expect(page.getByLabel("Your name", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.goto("/studio");
-  await expect(page.getByRole("heading", { name: "Your next chapter." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Project inquiries." })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -65,8 +65,41 @@ test("server API does not claim to save inquiries without a backend", async ({ r
 test("demo sign-in and unknown routes render clearly", async ({ page }) => {
   await page.goto("/login");
   await page.getByRole("link", { name: "Explore the demo" }).click();
-  await expect(page.getByRole("heading", { name: "Your next chapter." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Project inquiries." })).toBeVisible();
   const response = await page.goto("/a-space-that-does-not-exist");
   expect(response?.status()).toBe(404);
   await expect(page.getByRole("link", { name: "Back to Forma Studio" })).toBeVisible();
+});
+
+test("theme preference persists through reloads and across website, portal, and login", async ({ page }) => {
+  await page.goto("/");
+  const theme = page.getByRole("button", { name: "Dark theme", exact: true });
+  await expect(theme).toHaveAttribute("aria-pressed", "true");
+  await theme.click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Studio portal" }).click();
+  await expect(page.getByRole("heading", { name: "Project inquiries." })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: "Dark theme", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.goto("/login");
+  await expect(page.getByRole("button", { name: "Dark theme", exact: true })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("portal summary filters work and selected inquiry remains readable in both themes", async ({ page }) => {
+  await page.goto("/studio");
+  await expect(page.locator("tbody tr")).toHaveCount(4);
+  await page.getByRole("button", { name: "Filter: Completed", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Filter by status" })).toHaveValue("completed");
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await page.getByRole("button", { name: "Open inquiry from Noah Williams" }).click();
+  await expect(page.getByRole("dialog")).toContainText("whole-house renovation");
+  await page.getByRole("button", { name: "Close inquiry", exact: true }).click();
+  await page.getByRole("button", { name: "Dark theme", exact: true }).click();
+  await page.getByRole("button", { name: "Open inquiry from Noah Williams" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save changes" })).toBeDisabled();
 });

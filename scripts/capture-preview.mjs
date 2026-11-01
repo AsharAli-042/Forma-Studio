@@ -1,33 +1,41 @@
 import { mkdir } from "node:fs/promises";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 
+const baseUrl = process.env.APP_URL || "http://127.0.0.1:3100";
 await mkdir("artifacts", { recursive: true });
-const browser = await chromium.launch({
-  executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
-});
+const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined });
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1080 }, deviceScaleFactor: 1 });
+  page.setDefaultTimeout(60000);
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("http://127.0.0.1:3000", { waitUntil: "load" });
-  await page.locator(".hero-photo").waitFor();
-  await page.screenshot({ path: "artifacts/home-desktop.png" });
-  await page.screenshot({ path: "artifacts/home-full.png", fullPage: true });
-  await page.goto("http://127.0.0.1:3000/studio", { waitUntil: "load" });
-  await page.getByRole("button", { name: "Open inquiry from Olivia Bennett" }).waitFor();
-  await page.screenshot({ path: "artifacts/dashboard-desktop.png" });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("http://127.0.0.1:3000", { waitUntil: "load" });
-  await page.screenshot({ path: "artifacts/home-mobile.png" });
-  await page.goto("http://127.0.0.1:3000/studio", { waitUntil: "load" });
-  await page.getByRole("button", { name: "Open inquiry from Olivia Bennett" }).waitFor();
-  await page.screenshot({ path: "artifacts/dashboard-mobile.png" });
-  const layout = await page.evaluate(() => ({
-    viewport: innerWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-    overflow: [...document.querySelectorAll("body *")].filter(el => el.getBoundingClientRect().right > innerWidth && !el.closest(".table-scroll")).map(el => ({ tag: el.tagName, className: typeof el.className === "string" ? el.className : "svg", right: el.getBoundingClientRect().right })),
-  }));
-  console.log(JSON.stringify(layout));
-  console.log(JSON.stringify({ screenshots: 5, browserErrors: errors }));
+  for (const theme of ["dark", "light"]) {
+    await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    const toggle = page.getByRole("button", { name: "Dark theme", exact: true });
+    await toggle.waitFor();
+    if ((await toggle.getAttribute("aria-pressed")) !== String(theme === "dark")) await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", String(theme === "dark"));
+    await page.locator(".hero-photo").evaluate(img => img.decode());
+    await page.screenshot({ path: "artifacts/home-desktop-" + theme + ".png" });
+    await page.screenshot({ path: "artifacts/home-full-" + theme + ".png", fullPage: true });
+    await page.goto(new URL("/studio", baseUrl).href, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Open inquiry from Olivia Bennett" }).waitFor();
+    await page.screenshot({ path: "artifacts/dashboard-desktop-" + theme + ".png" });
+    await page.getByRole("button", { name: "Open inquiry from Olivia Bennett" }).click();
+    await page.screenshot({ path: "artifacts/inquiry-" + theme + ".png" });
+    await page.getByRole("button", { name: "Close inquiry", exact: true }).click();
+    await page.goto(new URL("/login", baseUrl).href, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "Dark theme", exact: true })).toHaveAttribute("aria-pressed", String(theme === "dark"));
+    await page.screenshot({ path: "artifacts/login-" + theme + ".png" });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    await page.locator(".hero-photo").evaluate(img => img.decode());
+    await page.screenshot({ path: "artifacts/home-mobile-" + theme + ".png" });
+    await page.goto(new URL("/studio", baseUrl).href, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Open inquiry from Olivia Bennett" }).waitFor();
+    await page.screenshot({ path: "artifacts/dashboard-mobile-" + theme + ".png" });
+    await page.setViewportSize({ width: 1440, height: 1080 });
+  }
+  console.log(JSON.stringify({ screenshots: 14, browserErrors: errors }));
   if (errors.length) process.exitCode = 1;
 } finally { await browser.close(); }

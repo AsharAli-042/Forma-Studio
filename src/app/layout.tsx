@@ -7,5 +7,6 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" data-scroll-behavior="smooth"><body>{children}</body></html>;
+  const themeScript = `try{document.documentElement.dataset.theme=localStorage.getItem('forma-theme')==='light'?'light':'dark'}catch{document.documentElement.dataset.theme='dark'}`;
+  return <html lang="en" data-theme="dark" data-scroll-behavior="smooth" suppressHydrationWarning><head><script id="forma-theme" dangerouslySetInnerHTML={{ __html: themeScript }} /></head><body>{children}</body></html>;
 }

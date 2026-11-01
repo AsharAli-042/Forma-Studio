@@ -14,7 +14,7 @@ try {
   await page.getByRole("combobox", { name: "Estimated budget", exact: true }).selectOption("Under $5,000");
   await page.getByLabel("A little about your project", { exact: true }).fill(`Sample inquiry created to verify the live website-to-database connection. Created ${new Date().toISOString()}. This is not a real customer request.`);
   const responsePromise = page.waitForResponse(response => response.url().endsWith("/api/inquiries") && response.request().method() === "POST");
-  await page.getByRole("button", { name: "Start the conversation" }).click();
+  await page.getByRole("button", { name: "Send project inquiry" }).click();
   const response = await responsePromise;
   assert.equal(response.status(), 201, `Live inquiry submission failed: HTTP ${response.status()}.`);
   await page.locator(".inquiry-success").waitFor();
