@@ -17,18 +17,19 @@ function subscribe(callback: () => void) {
   };
 }
 function getSnapshot() { return document.documentElement.dataset.theme === "light" ? "light" : "dark"; }
-function getServerSnapshot() { return "dark"; }
+function getServerSnapshot() { return "pending"; }
 
 export function ThemeToggle() {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const dark = theme !== "light";
   function toggle() {
-    const next = theme === "dark" ? "light" : "dark";
+    const next = dark ? "light" : "dark";
     document.documentElement.dataset.theme = next;
     try { localStorage.setItem("forma-theme", next); } catch { /* Theme still works if storage is unavailable. */ }
     window.dispatchEvent(new Event(eventName));
   }
-  return <button className="theme-toggle" type="button" aria-label="Dark theme" aria-pressed={theme === "dark"} onClick={toggle}>
+  return <button className="theme-toggle" type="button" aria-label="Dark theme" aria-pressed={dark} disabled={theme === "pending"} onClick={toggle}>
     <span className={theme === "light" ? "selected" : ""}>Light</span>
-    <span className={theme === "dark" ? "selected" : ""}>Dark</span>
+    <span className={dark ? "selected" : ""}>Dark</span>
   </button>;
 }

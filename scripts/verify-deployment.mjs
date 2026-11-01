@@ -12,7 +12,7 @@ if (process.argv.includes("--wait")) {
     try {
       const response = await fetch(baseUrl, { cache: "no-store", signal: AbortSignal.timeout(15000) });
       const html = await response.text();
-      if (response.ok && html.includes("hero-photo-frame") && html.includes("forma-theme")) { ready = true; break; }
+      if (response.ok && html.includes("hero-photo-frame") && /aria-label="Dark theme"[^>]*disabled/.test(html)) { ready = true; break; }
     } catch { /* Deployment may be switching versions. */ }
     await new Promise(resolve => setTimeout(resolve, 10000));
   }
@@ -29,6 +29,7 @@ try {
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Rooms to live in.");
   assert.equal(await page.locator(".demo-form-note").count(), 0, "Production must use the live backend.");
   const toggle = page.getByRole("button", { name: "Dark theme", exact: true });
+  await expect(toggle).toBeEnabled({ timeout: 30000 });
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await toggle.click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
